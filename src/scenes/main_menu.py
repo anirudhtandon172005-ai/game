@@ -3,8 +3,7 @@ Main Menu Scene for Kart Rush
 """
 
 from ursina import *
-from src.ui.menu_button import MenuButton
-from src.ui.title_text import TitleText
+from src.ui import MenuButton, TitleText
 
 
 class MainMenu:
