@@ -12,6 +12,34 @@ from src.core.input import InputSystem
 from src.game.kart import Kart
 
 
+class FPSCounter:
+    """Rolling FPS calculator."""
+    
+    def __init__(self, window_size=60):
+        self.window_size = window_size
+        self.frame_times = []
+        self.fps = 60.0
+    
+    def accumulate(self, dt):
+        """Add a frame time and update rolling FPS."""
+        if dt <= 0:
+            return
+        
+        fps = 1.0 / dt
+        self.frame_times.append(fps)
+        
+        # Keep only last N frames
+        if len(self.frame_times) > self.window_size:
+            self.frame_times.pop(0)
+        
+        # Calculate average
+        self.fps = sum(self.frame_times) / len(self.frame_times)
+    
+    def get_fps(self):
+        """Get current rolling FPS."""
+        return self.fps
+
+
 class Game(ShowBase):
     """
     Main game class with simulate/render separation.
@@ -53,6 +81,12 @@ class Game(ShowBase):
         
         # Frame counter for determinism
         self.frame_count = 0
+        
+        # FPS counter for debug overlay
+        self.fps_counter = FPSCounter()
+        
+        # Debug overlay reference (set by harness)
+        self.debug_overlay_node = None
     
     def setup_scene(self):
         """Set up the basic scene (called once at startup)."""
@@ -135,12 +169,26 @@ class Game(ShowBase):
         self.state.set('COUNTDOWN')
     
     def _get_track_data(self, track_id):
-        """Get track data (placeholder until track system is implemented)."""
-        # Simple oval track for now
+        """Get track data from Track system."""
+        from src.game.track import create_test_track
+        
+        # Create procedural track
+        track = create_test_track()
+        
+        # Find start position (first checkpoint)
+        start_cp = track.get_checkpoint_at_index(0)
+        start_pos = start_cp['position'] if start_cp else (0, 0, 80)
+        start_tangent = start_cp['tangent'] if start_cp else (0, 0, 1)
+        
+        # Calculate rotation from tangent
+        import math
+        start_rot = math.degrees(math.atan2(start_tangent[0], start_tangent[2]))
+        
         return {
-            'start_position': (0, 0, 80),
-            'start_rotation': 0,
-            'checkpoints': [(0, 0, 80), (50, 0, 50), (0, 0, 0), (-50, 0, 50)],
+            'track': track,
+            'start_position': (start_pos[0], start_pos[1], start_pos[2]),
+            'start_rotation': start_rot,
+            'checkpoints': [cp['position'] for cp in track.checkpoints],
             'laps_to_finish': 3
         }
     
@@ -181,6 +229,13 @@ class Game(ShowBase):
         
         # Update player
         if self.player and self.state.is_racing():
+            # Get surface under kart
+            if self.track_data and 'track' in self.track_data:
+                track = self.track_data['track']
+                surface = track.surface_at(self.player.position)
+            else:
+                surface = None
+            
             if getattr(self.player, 'autopilot', False):
                 # Simple autopilot for QA
                 input_state = {'forward': True, 'backward': False, 
@@ -188,7 +243,7 @@ class Game(ShowBase):
                               'drift': False, 'boost': False}
             
             self.player.set_input(input_state)
-            self.player.update(dt)
+            self.player.update(dt, surface)
             
             # Update camera to follow player
             if not self.qa_mode:
@@ -197,10 +252,17 @@ class Game(ShowBase):
         # Update AI
         for ai in self.ai_karts:
             if self.state.is_racing():
+                # Get surface under AI kart
+                if self.track_data and 'track' in self.track_data:
+                    track = self.track_data['track']
+                    surface = track.surface_at(ai.position)
+                else:
+                    surface = None
+                
                 ai.set_input({'forward': True, 'backward': False,
                              'left': False, 'right': False,
                              'drift': False, 'boost': False})
-                ai.update(dt)
+                ai.update(dt, surface)
         
         # Update race timer
         if self.state.current == 'RACING':
@@ -248,6 +310,13 @@ class Game(ShowBase):
         """Main game loop tick."""
         dt = globalClock.getDt()
         dt = min(dt, 0.1)  # Cap delta time
+        
+        # Update FPS counter
+        self.fps_counter.accumulate(dt)
+        
+        # Update debug overlay if present
+        if self.debug_overlay_node and hasattr(self, 'qa_harness'):
+            self.qa_harness._update_debug_overlay(dt)
         
         self.simulate(dt)
         # Render is handled by Panda3D automatically

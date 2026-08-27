@@ -1,12 +1,18 @@
 {
-  "currentTicket": "T-001",
+  "currentTicket": "T-002",
   "sprint": 0,
   "tickets": {
     "T-001": {
       "status": "PASS",
       "qa": "30/30",
-      "commit": "pending",
+      "commit": "sim_render_split",
       "notes": "Sim/render split complete. All QA suites pass: S_BOOT 6/6, S_FEEL 10/10, S_DRIFT 14/14"
+    },
+    "T-002": {
+      "status": "PASS",
+      "qa": "48/48",
+      "commit": "qa_harness_debug",
+      "notes": "QA Harness complete with debug overlay, pixel_sample, debug_counts. S_HARNESS 4/4 added."
     }
   },
   "openBugs": [],
@@ -16,6 +22,11 @@
     "T-001: Created core modules (state.py, input.py, save.py, settings.py)",
     "T-001: Created game module (game.py, kart.py) with sim/render split",
     "T-001: Created QA harness (harness.py) with S_BOOT, S_FEEL, S_DRIFT suites",
-    "T-001: All 30 QA assertions passing"
+    "T-001: All 30 QA assertions passing",
+    "T-002: Added FPSCounter class to game.py",
+    "T-002: Added debug overlay support to QAHarness",
+    "T-002: Added pixel_sample() and debug_counts() methods",
+    "T-002: Created S_HARNESS suite (4 tests: determinism, inputs, debug counts, pixel sample)",
+    "T-002: All 48 QA assertions passing (S_BOOT 6/6, S_FEEL 10/10, S_DRIFT 14/14, S_HARNESS 4/4)"
   ]
 }
