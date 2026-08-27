@@ -1,58 +1,92 @@
 """
-KART RUSH - 3D Go-Kart Racing Game
-Main Entry Point
+Kart Rush - Main Entry Point
+Autonomous agentic game development system.
+
+Usage:
+    python main.py              # Run normal game
+    python main.py --qa         # Run QA suites headless
+    python main.py --qa S_BOOT  # Run specific QA suite
 """
 
-from ursina import *
+import sys
+import argparse
 
-# Simple test to verify ursina works
-def test_game():
-    app = Ursina()
-    window.title = 'Kart Rush'
-    window.size = (1280, 720)
+
+def run_game():
+    """Run the main game."""
+    from src.game.game import Game
     
-    # Create a simple scene
-    ground = Entity(
-        model='plane',
-        color=color.rgb(50, 150, 50),
-        scale=(100, 1, 100),
-        texture='white_cube'
-    )
+    print("=" * 50)
+    print("KART RUSH - Starting...")
+    print("=" * 50)
     
-    # Create a player kart (simple cube for now)
-    player = Entity(
-        model='cube',
-        color=color.blue,
-        scale=(1, 0.5, 2),
-        position=(0, 0.5, 0),
-        texture='white_cube'
-    )
+    try:
+        game = Game()
+        game.start_realtime_loop()
+        game.run()
+        return 0
+    except Exception as e:
+        print(f"Game error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def run_qa(suite_name=None):
+    """Run QA suites."""
+    from panda3d.core import loadPrcFileData
     
-    # Camera setup
-    camera.position = (0, 5, -10)
-    camera.look_at(player)
+    # Configure for headless testing - must be done before importing Game
+    loadPrcFileData('', 'window-type offscreen')
+    loadPrcFileData('', 'show-frame-rate-meter 0')
+    loadPrcFileData('', 'load-display p3tinydisplay')
     
-    print("Kart Rush initialized!")
-    print("Controls: WASD to move, ESC to quit")
+    from src.game.game import Game
+    from src.qa.harness import run_suite, run_all_suites, SUITES
     
-    # Simple movement
-    speed = 10
+    print("=" * 50)
+    print("KART RUSH - QA Mode")
+    print("=" * 50)
     
-    def update():
-        if held_keys['w']:
-            player.z -= speed * time.dt
-        if held_keys['s']:
-            player.z += speed * time.dt
-        if held_keys['a']:
-            player.x -= speed * time.dt
-        if held_keys['d']:
-            player.x += speed * time.dt
+    try:
+        game = Game()
         
-        # Follow camera
-        camera.position = Vec3(player.x, 5, player.z - 10)
-        camera.look_at(player)
+        if suite_name:
+            # Run specific suite
+            if suite_name not in SUITES:
+                print(f"Unknown suite: {suite_name}")
+                print(f"Available: {list(SUITES.keys())}")
+                return 1
+            
+            success = run_suite(suite_name, game)
+        else:
+            # Run all suites
+            success = run_all_suites(game)
+        
+        return 0 if success else 1
     
-    app.run()
+    except Exception as e:
+        print(f"QA error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Kart Rush Racing Game')
+    parser.add_argument('--qa', nargs='?', const='ALL', metavar='SUITE',
+                       help='Run QA suites (optionally specify suite name)')
+    
+    args = parser.parse_args()
+    
+    if args.qa:
+        if args.qa == 'ALL':
+            return run_qa()
+        else:
+            return run_qa(args.qa)
+    else:
+        return run_game()
+
 
 if __name__ == '__main__':
-    test_game()
+    sys.exit(main())

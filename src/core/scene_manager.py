@@ -2,7 +2,7 @@
 Scene Manager - Handles transitions between game scenes.
 """
 
-from ursina import Scene
+from ursina import Entity
 
 
 class SceneManager:
